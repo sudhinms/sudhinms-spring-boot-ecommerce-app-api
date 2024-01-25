@@ -1,6 +1,7 @@
 package com.ecommerce.app.EcommerceApp.services;
 
 import com.ecommerce.app.EcommerceApp.controllers.AdminController;
+import com.ecommerce.app.EcommerceApp.controllers.CustomerController;
 import com.ecommerce.app.EcommerceApp.controllers.HomeController;
 import com.ecommerce.app.EcommerceApp.dto.paymentsDto.PaymentDto;
 import com.ecommerce.app.EcommerceApp.dto.productDto.OrderDetailDto;
@@ -33,10 +34,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 
 @Service
@@ -74,19 +72,21 @@ public class OrderService {
                 .orElseThrow(()->new AddressNotFoundException("You don't have a valid address..."));
         CollectionModel<Address> collectionModel=CollectionModel.of(addresses);
         ProductDetails productDetails=checkQuantity(productId);
+        HttpStatus httpStatus=HttpStatus.OK;
         if(productDetails.getQuantity()<quantity){
             throw new ProductOutOfStockException("Couldn't place order. Only "+productDetails.getQuantity()+" left!!!");
         }
-        if(addresses.size()>=1){
+        if(!addresses.isEmpty()){
             collectionModel.add(Link.of("http://localhost:8081/app/product/order/confirm-address/{addressId}"));
         }
         else {
             collectionModel.add(WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(HomeController.class)
                     .createAddress(null, null)).withRel("Create_New_Address"));
+            httpStatus=HttpStatus.CONTINUE;
         }
         this.userOrderInfoMap.put("productId",productId);
         this.userOrderInfoMap.put("quantity", (long) quantity);
-        return new ResponseEntity<>(collectionModel,HttpStatus.FOUND);
+        return new ResponseEntity<>(collectionModel,httpStatus);
     }
 
     public ResponseEntity<?> confirmAddress(long addressId){
@@ -98,16 +98,19 @@ public class OrderService {
         return choosePaymentMethod();
     }
 
-    public ResponseEntity<EntityModel<Link>> choosePaymentMethod(){
+    public ResponseEntity<EntityModel<String>> choosePaymentMethod(){
         Link link1=Link.of("http://localhost:8081/app/product/order/payment/upi/{productId}/{quantity}");
         Link link2=Link.of("http://localhost:8081/app/product/order/payment/cash-on-delivery/{productId}/{quantity}");
-        EntityModel<Link> entityModel=EntityModel.of(link1.withRel("UPI_payment"));
+        EntityModel<String> entityModel=EntityModel.of("Choose payment link");
+        entityModel.add(link1.withRel("UPI_Payment"));
         entityModel.add(link2.withRel("Cash_On_Delivery"));
         return new ResponseEntity<>(entityModel,HttpStatus.OK);
     }
 
-    public ResponseEntity<?> upiPayment(PaymentDto paymentDto,String email){
+    public ResponseEntity<?> upiPayment(PaymentDto paymentDto,String email,long productId,int quantity){
         this.paymentService=new UpiPayment();
+        userOrderInfoMap.put("productId",productId);
+        userOrderInfoMap.put("quantity", (long) quantity);
         PaymentDto paymentDto1=paymentService.doPayment(userOrderInfoMap,paymentDto);
         return confirmOrder(email,userOrderInfoMap, PaymentStatus.PAYED.name());
     }
@@ -131,16 +134,17 @@ public class OrderService {
         orders.setOrderDateTime(LocalDateTime.now());
         orders.setQuantity(Math.toIntExact(userOrderInfoMap.get("quantity")));
         orders.setAddressId(userOrderInfoMap.get("addressId"));
-        orders.setUserId(getUserIdWithEmail(email));
-        orders.setProductId(userOrderInfoMap.get("productId"));
+        orders.setUserInfo(userRepository.findByEmail(email).get());
         orders.setExpectedDeliveryDate(Date.from((orders.getOrderDateTime().plusDays(7))
                 .atZone(ZoneId.systemDefault()).toInstant()));
         orders.setPaymentStatus(paymentStatus);
         orders.setStatus(OrderStatus.ORDER_PLACED.name());
-        orders.setProductPrice(productDetails.getPrice());
-        double total=userOrderInfoMap.get("quantity")*orders.getProductPrice();
+        orders.setProductDetails(productDetails);
+        double total=userOrderInfoMap.get("quantity")*orders.getProductDetails().getPrice();
         orders.setTotalPrice(total);
         Orders savedOrder=orderRepository.save(orders);
+        productDetails.setQuantity((productDetails.getQuantity())-(orders.getQuantity()));
+        productRepository.save(productDetails);
         return getAllOrdersOfUser(email);
     }
 
@@ -148,15 +152,17 @@ public class OrderService {
     public ResponseEntity<CollectionModel<Orders>> getAllOrdersOfUser(String email) {
         UserInfo userInfo=userRepository.findByEmail(email)
                 .orElseThrow(()->new UsernameNotFoundException("Users not found with username : "+email));
-        List<Orders> ordersList=orderRepository.findByUserId(getUserIdWithEmail(email))
-                .orElseThrow(()->new InvalidOrderDetailsException("No order found for : "+email));
+        List<Orders> ordersList=orderRepository.findByUserInfoId(userInfo.getId());
+        if(ordersList.isEmpty()){
+            throw new InvalidOrderDetailsException("no order found for user : "+email);
+        }
         CollectionModel<Orders> collectionModel=CollectionModel.of(ordersList);
         Link link=Link.of("http://localhost:8081/app/product/order/{orderId}");
         collectionModel.add(link.withRel("Single_order_details"));
         return new ResponseEntity<>(collectionModel,HttpStatus.OK);
     }
 
-    public ResponseEntity<?> getAllUsersOrder() {
+    public ResponseEntity<?> getAllUserOrder() {
         return new ResponseEntity<>(orderRepository.findAll(),HttpStatus.OK);
     }
 
@@ -177,7 +183,8 @@ public class OrderService {
                 }
                 orders = orderRepository.save(orders);
             }
-            EntityModel<Orders> entityModel = EntityModel.of(orders);
+        assert orders != null;
+        EntityModel<Orders> entityModel = EntityModel.of(orders);
             entityModel.add(WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(AdminController.class)
                     .getAllOrders()).withRel("All_Orders"));
             return new ResponseEntity<>(entityModel, HttpStatus.ACCEPTED);
@@ -197,7 +204,7 @@ public class OrderService {
         Optional<Address> address=addressRepository.findById(order.getAddressId());
         address.ifPresent(orderDetailDto::setAddress);
         orderDetailDto.setStatus(order.getStatus());
-        UserInfo userInfo=userRepository.findById(order.getUserId())
+        UserInfo userInfo=userRepository.findById(order.getUserInfo().getId())
                 .orElseThrow(()->new UsernameNotFoundException("No user found"));
         UserDetailsAdminView userDetailsAdminView=new UserDetailsAdminView();
         userDetailsAdminView.setEmail(userInfo.getEmail());
@@ -207,9 +214,81 @@ public class OrderService {
             userDetailsAdminView.setProfileImage(userInfo.getProfileImage());
         }
         orderDetailDto.setUserDetails(userDetailsAdminView);
-        Optional<ProductDetails> productDetails=productRepository.findById(order.getProductId());
+        Optional<ProductDetails> productDetails=productRepository.findById(order.getProductDetails().getId());
         productDetails.ifPresent(orderDetailDto::setProductDetails);
 
         return new ResponseEntity<>(orderDetailDto,HttpStatus.OK);
     }
+
+    public ResponseEntity<?> returnProduct(long orderId, String email) {
+        Orders order=orderRepository.findById(orderId)
+                .orElseThrow(()->
+                        new InvalidOrderDetailsException("Order with order id : "+orderId+" not found"));
+        if(!Objects.equals(order.getUserInfo().getEmail(), email)){
+            throw new InvalidOrderDetailsException("user '"+email+"' have no order with order id "+orderId);
+        }
+        String message=null;
+        HttpStatus httpStatus=HttpStatus.BAD_REQUEST;
+        switch (OrderStatus.valueOf(order.getStatus())){
+            case RETURNED:
+                throw new ProductDeliveryException("Can't initiate return request because product is already returned");
+            case RETURN_REQUEST:
+                throw new ProductDeliveryException("Can't initiate return request because product is already requested to return");
+            case DELIVERED:
+                order.setStatus(OrderStatus.RETURN_REQUEST.name());
+                orderRepository.save(order);
+                message="Return request initiated successfully";
+                httpStatus=HttpStatus.OK;
+                break;
+            default:
+                message="Order is not in a state for return!!!";
+                break;
+        }
+        Link link=WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(CustomerController.class)
+                .getAllOrders("")).withRel("All_Orders");
+        EntityModel<String> entityModel=EntityModel.of(message);
+        entityModel.add(link);
+        return  new ResponseEntity<>(entityModel,httpStatus);
+    }
+
+    public ResponseEntity<EntityModel<String>> cancelOrder(long orderId, String email){
+        Orders order=orderRepository.findById(orderId)
+                .orElseThrow(()->
+                        new InvalidOrderDetailsException("Order with order id : "+orderId+" not found"));
+        if(!Objects.equals(order.getUserInfo().getEmail(), email)){
+            throw new InvalidOrderDetailsException("user '"+email+"' have no order with order id "+orderId);
+        }
+        String message=null;
+        Link link=WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(CustomerController.class)
+                .getAllOrders("")).withRel("All_Orders");
+        HttpStatus httpStatus=HttpStatus.BAD_REQUEST;
+        Link.of("http://localhost:8081/app/product/order/return-order/{orderId}");
+
+        switch (OrderStatus.valueOf(order.getStatus())){
+
+            case DELIVERED:
+                message="Can't cancel order because product is delivered.You can request to return product";
+                link=Link.of("http://localhost:8081/app/product/order/return-order/{orderId}");
+                break;
+            case OUT_FOR_DELIVERY:
+                message="Can't cancel order because product is out for delivered.You can request to return product when you get it";
+                link=Link.of("http://localhost:8081/app/product/order/return-order/{orderId}");
+                break;
+            case CANCELLED:
+                message="Can't cancel order because product is already cancelled";
+                break;
+            case RETURN_REQUEST:
+                throw new ProductDeliveryException("Can't initiate cancel request because product is in return state");
+            case RETURNED:
+                throw new ProductDeliveryException("Can't initiate cancel request because product is already returned");
+            default:
+                message="Cancel request initiated successfully";
+                order.setStatus(OrderStatus.CANCELLED.name());
+                orderRepository.save(order);
+                httpStatus=HttpStatus.OK;
+                break;
+        }
+        return new ResponseEntity<>(EntityModel.of(message).add(link),httpStatus);
+    }
+
 }

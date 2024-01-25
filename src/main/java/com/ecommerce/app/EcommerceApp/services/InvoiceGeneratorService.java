@@ -8,9 +8,7 @@ import com.ecommerce.app.EcommerceApp.exceptions.ProductNotFoundException;
 import com.ecommerce.app.EcommerceApp.repositories.OrderRepository;
 import com.ecommerce.app.EcommerceApp.repositories.ProductRepository;
 import com.ecommerce.app.EcommerceApp.repositories.UserRepository;
-import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.PdfWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -37,6 +35,10 @@ public class InvoiceGeneratorService {
             PdfWriter.getInstance(document,outputStream);
             document.open();
 
+            String title="Invoice for OrderId Details";
+            Font titleFont=new Font(Font.FontFamily.HELVETICA,22,Font.BOLD, BaseColor.RED);
+            document.add(new Paragraph(title));
+
             document.add(new Paragraph(generateInvoiceContext(email,id)));
 
             document.close();
@@ -59,13 +61,18 @@ public class InvoiceGeneratorService {
         UserInfo userInfo=userRepository.findByEmail(email)
                 .orElseThrow(()->new UsernameNotFoundException("No user found with username : "+email));
 
-        ProductDetails productDetails=productRepository.findById(order.getProductId())
-                .orElseThrow(()->new ProductNotFoundException("product not found"));
+        ProductDetails productDetails=order.getProductDetails();
+        if(productDetails==null){
+            throw new ProductNotFoundException("product not found");
+        }
+        invoiceContext.append("Order Id\t: \t").append(order.getId()).append("\n");
+        invoiceContext.append("User\t: \t"+userInfo.getName()).append("\n");
+        invoiceContext.append("User Email\t: \t"+userInfo.getEmail()).append("\n");
+        invoiceContext.append("Product Name\t: \t"+productDetails.getName()).append("\n");
+        invoiceContext.append("Quantity\t: \t"+order.getQuantity()).append("\n");
+        double totalAmount=order.getQuantity()*productDetails.getPrice();
+        invoiceContext.append("Total Amount\t: \t"+totalAmount).append("\n");
 
-        invoiceContext.append("Invoice for OrderId: "+order.getId()).append("\n");
-        invoiceContext.append("User: "+userInfo.getName()).append("\n");
-        invoiceContext.append("product:"+productDetails.getName()).append("\n");
-        invoiceContext.append("Amount: "+order.getProductPrice()).append("\n");
 
         return invoiceContext.toString();
 

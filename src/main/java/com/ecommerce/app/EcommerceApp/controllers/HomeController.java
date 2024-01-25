@@ -17,6 +17,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -37,13 +38,13 @@ public class HomeController {
     private AuthenticationManager authenticationManager;
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@ModelAttribute @Valid UserInfoDto userInfoDto
+    public ResponseEntity<?> registerUser(@ModelAttribute @Validated UserInfoDto userInfoDto
                                               ,@RequestParam("image")@Nullable MultipartFile image){
         return userService.registerUser(userInfoDto,image);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> registration(@RequestBody @Valid LoginDto loginDto){
+    public ResponseEntity<?> login(@RequestBody @Valid LoginDto loginDto){
         Authentication authentication=authenticationManager
                 .authenticate(new UsernamePasswordAuthenticationToken(loginDto.getEmail(),loginDto.getPassword()));
         if(authentication.isAuthenticated()){

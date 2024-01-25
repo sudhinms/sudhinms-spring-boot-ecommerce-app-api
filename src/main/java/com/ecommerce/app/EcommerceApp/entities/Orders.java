@@ -1,13 +1,11 @@
 package com.ecommerce.app.EcommerceApp.entities;
 
-import com.ecommerce.app.EcommerceApp.enums.OrderStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Past;
 import lombok.*;
 import org.springframework.format.annotation.DateTimeFormat;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -30,11 +28,12 @@ public class Orders {
     private int quantity;
     private long addressId;
     private String status;
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn(name = "user_id")
     private UserInfo userInfo;
+    @ManyToOne
+    @JoinColumn(name = "product_id")
     private ProductDetails productDetails;
     private String paymentStatus;
-//    private double productPrice;
     private double totalPrice;
 }

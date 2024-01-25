@@ -37,8 +37,21 @@ public class ProductService {
 
     private static final String IMAGE_DIRECTORY="D:/Projects/EcommerceApp/src/main/resources/images/products/";
 
-    private ProductDetails validateImageAndSaveData(ProductDetails productDetails, MultipartFile image){
+    private ProductDetailsDto mapProductDetailsWithProductDetailsDto(ProductDetailsDto dto,ProductDetails details){
+        dto.setCategory(details.getCategory().getName());
+        dto.setName(details.getName());
+        dto.setId(details.getId());
+        dto.setPrice(details.getPrice());
+        dto.setQuantity(details.getQuantity());
+        dto.setBrand(details.getBrand());
+        if(details.getImagePath()!=null){
+            dto.setProductImage(getImage(details.getImagePath()));
+        }
+        return dto;
+    }
+    private ProductDetailsDto validateImageAndSaveData(ProductDetails productDetails, MultipartFile image){
         ProductDetailsDto productDetailsDto=new ProductDetailsDto();
+        ProductDetails details=null;
         if(image!=null){
             if (!image.getContentType().startsWith("image/")) {
                 throw new FileReadWriteException("Only images are allowed...");
@@ -47,7 +60,8 @@ public class ProductService {
             boolean isExist=checkIfExist(image,path);
             if(Files.exists(Path.of(path)) && isExist){
                 productDetails.setImagePath(path);
-                return productRepository.save(productDetails);
+                details=productRepository.save(productDetails);
+                return mapProductDetailsWithProductDetailsDto(productDetailsDto,details);
             }
             try {
                 if(Files.exists(Path.of(path))){
@@ -59,14 +73,10 @@ public class ProductService {
                 throw new FileReadWriteException("Cant upload file : "+image.getOriginalFilename());
             }
         }
-        ProductDetails details=productRepository.save(productDetails);
-        productDetailsDto.setCategory(details.getCategory().getName());
-        productDetailsDto.setName(details.getName());
-        productDetailsDto.setQuantity(details.getQuantity());
-        productDetailsDto.setId(details.getId());
-        productDetailsDto.setPrice(details.getPrice());
-        return productDetails;
+        details=productRepository.save(productDetails);
+        return mapProductDetailsWithProductDetailsDto(productDetailsDto,details);
     }
+
     private boolean checkIfExist(MultipartFile image,String path) {
         if(Files.exists(Path.of(IMAGE_DIRECTORY + image.getOriginalFilename()))){
             try {
@@ -104,13 +114,14 @@ public class ProductService {
         productDetails.setName(productDetailsDto.getName());
         productDetails.setPrice(productDetailsDto.getPrice());
         productDetails.setQuantity(productDetailsDto.getQuantity());
+        productDetails.setBrand(productDetailsDto.getBrand());
         Categories category=categoriesRepository.findByName(productDetailsDto.getCategory().toLowerCase());
         if(category==null){
             throw new RuntimeException("No category found with name : "+productDetailsDto.getCategory());
         }
         productDetails.setCategory(category);
-        ProductDetails result= validateImageAndSaveData(productDetails,image);
-        EntityModel<ProductDetails> entityModel=EntityModel.of(result);
+        ProductDetailsDto result= validateImageAndSaveData(productDetails,image);
+        EntityModel<ProductDetailsDto> entityModel=EntityModel.of(result);
         entityModel.add(WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(AdminController.class)
                 .getAllProducts()).withRel("All_Products"));
         return new ResponseEntity<>(entityModel,HttpStatus.CREATED);
@@ -132,15 +143,7 @@ public class ProductService {
     public ResponseEntity<ProductDetailsDto> getSingleProductById(long id){
         try {
             ProductDetails productDetails=productRepository.findById(id).get();
-            ProductDetailsDto productDetailsDto=new ProductDetailsDto();
-            productDetailsDto.setQuantity(productDetails.getQuantity());
-            productDetailsDto.setPrice(productDetails.getPrice());
-            productDetailsDto.setName(productDetails.getName());
-            productDetailsDto.setId(productDetails.getId());
-            productDetailsDto.setCategory(productDetails.getCategory().getName());
-            if(productDetails.getImagePath()!=null) {
-                productDetailsDto.setProductImage(getImage(productDetails.getImagePath()));
-            }
+            ProductDetailsDto productDetailsDto=mapProductDetailsWithProductDetailsDto(new ProductDetailsDto(),productDetails);
             return new ResponseEntity<>(productDetailsDto,HttpStatus.FOUND);
         }catch (Exception e ){
             throw new ProductNotFoundException("Product with id : "+id+" not found");
@@ -149,27 +152,27 @@ public class ProductService {
 
     public ResponseEntity<List<ProductDetailsDto>> getAllProducts(){
         List<ProductDetailsDto> allProducts=productRepository.findAll().stream()
-                .map(product->{
-                    ProductDetailsDto productDetailsDto=new ProductDetailsDto();
-                    productDetailsDto.setId(product.getId());
-                    productDetailsDto.setName(product.getName());
-                    productDetailsDto.setPrice(product.getPrice());
-                    productDetailsDto.setQuantity(product.getQuantity());
-                    productDetailsDto.setCategory(product.getCategory().getName());
-                    if(product.getImagePath()!=null){
-                        productDetailsDto.setProductImage(getImage(product.getImagePath()));
-                    }
-                    return productDetailsDto;
-                }).toList();
+                .map(product->
+                    mapProductDetailsWithProductDetailsDto(new ProductDetailsDto(),product)
+                ).toList();
         return new ResponseEntity<>(allProducts,HttpStatus.OK);
     }
 
     public ResponseEntity<?> updateProductById(long id,ProductDetailsDto productDetailsDto,MultipartFile image){
         try{
             ProductDetails product = productRepository.findById(id).get();
-            product.setName(productDetailsDto.getName());
-            product.setPrice(productDetailsDto.getPrice());
-            product.setQuantity(productDetailsDto.getQuantity());
+            if(productDetailsDto.getBrand()!=null){
+                product.setBrand(productDetailsDto.getBrand());
+            }
+            if(productDetailsDto.getName()!=null){
+                product.setName(productDetailsDto.getName());
+            }
+            if(productDetailsDto.getPrice()!=0.0){
+                product.setPrice(productDetailsDto.getPrice());
+            }
+            if(productDetailsDto.getQuantity()!=0){
+                product.setQuantity((product.getQuantity())+(productDetailsDto.getQuantity()));
+            }
           return new ResponseEntity<>(validateImageAndSaveData(product,image),HttpStatus.OK);
         }catch (Exception e ){
             throw new ProductNotFoundException("Product with id : "+id+" not found");

@@ -2,7 +2,6 @@ package com.ecommerce.app.EcommerceApp.entities;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -20,10 +19,10 @@ public class Address {
     private long id;
     private String street;
     @Size(min = 2,max = 100)
-    @Pattern(regexp = "^[a-zA-Z]+$",message = "Give valid city")
+    @Pattern(regexp = "^[a-zA-Z ]+$",message = "Give valid city")
     private String city;
     @Size(min = 2,max = 100)
-    @Pattern(regexp = "^[a-zA-Z]+$",message = "Give valid state")
+    @Pattern(regexp = "^[a-zA-Z ]+$",message = "Give valid state")
     private String state;
     @Pattern(regexp = "^\\d{6}$",message = "Invalid pin")
     private String pin;

@@ -64,11 +64,13 @@ public class CustomerController {
                                             @PathVariable("addressId") long addressId){
         return orderService.confirmAddress(addressId);
     }
-    @PostMapping("/order/payment/upi")
+    @PostMapping("/order/payment/upi/{productId}/{quantity}")
     public ResponseEntity<?> initiateUpiPayment(@RequestBody PaymentDto paymentDto,
+                                   @PathVariable("productId") long productId,
+                                   @PathVariable("quantity") int quantity,
                                    @RequestHeader (name="Authorization") String token){
         String currentUserEmail=jwtService.extractUsernameFromToken(token.substring(7));
-        return orderService.upiPayment(paymentDto,currentUserEmail);
+        return orderService.upiPayment(paymentDto,currentUserEmail,productId,quantity);
     }
 
     @PostMapping("/order/payment/cash-on-delivery")
@@ -86,5 +88,21 @@ public class CustomerController {
         httpHeaders.setContentDispositionFormData("attachment","invoice.pdf");
         return new ResponseEntity<>(invoiceContext,httpHeaders, HttpStatus.OK);
     }
+
+    @PatchMapping("/order/return-order/{orderId}")
+    public ResponseEntity<?> returnRequest(@PathVariable("orderId") long orderId,
+                                           @RequestHeader (name="Authorization") String token) {
+        String email = jwtService.extractUsernameFromToken(token.substring(7));
+        return orderService.returnProduct(orderId,email);
+    }
+
+    @PatchMapping("/order/cancel-order/{orderId}")
+    public ResponseEntity<?> cancelOrder(@PathVariable("orderId") long orderId,
+                                         @RequestHeader (name="Authorization") String token){
+        String email=jwtService.extractUsernameFromToken(token.substring(7));
+        return orderService.cancelOrder(orderId,email);
+    }
+
+
 
 }

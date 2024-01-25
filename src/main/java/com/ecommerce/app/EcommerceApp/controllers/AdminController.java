@@ -55,7 +55,7 @@ public class AdminController {
 
     @PatchMapping("/update-product/{id}")
     public ResponseEntity<?> updateProduct(@PathVariable("id") long id
-                                            ,@ModelAttribute @Valid ProductDetailsDto productDetailsDto
+                                            ,@ModelAttribute ProductDetailsDto productDetailsDto
                                             ,@RequestParam("image") @Nullable MultipartFile image){
         return productService.updateProductById(id,productDetailsDto,image);
     }
@@ -77,7 +77,7 @@ public class AdminController {
 
     @GetMapping("/admin/view-all-orders")
     public ResponseEntity<?> getAllOrders(){
-        return orderService.getAllUsersOrder();
+        return orderService.getAllUserOrder();
     }
 
     @PatchMapping("/order/update/{orderId}")

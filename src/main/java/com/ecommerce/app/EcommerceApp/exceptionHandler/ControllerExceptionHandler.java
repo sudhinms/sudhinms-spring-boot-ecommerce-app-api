@@ -4,9 +4,9 @@ import com.ecommerce.app.EcommerceApp.exceptions.AddressNotFoundException;
 import com.ecommerce.app.EcommerceApp.exceptions.FileReadWriteException;
 import com.ecommerce.app.EcommerceApp.exceptions.PasswordNotMatchException;
 import com.ecommerce.app.EcommerceApp.exceptions.ProductNotFoundException;
+import com.ecommerce.app.EcommerceApp.services.ProductDeliveryException;
 import io.jsonwebtoken.MalformedJwtException;
 import org.springframework.hateoas.Link;
-import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.*;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -88,6 +88,14 @@ public class ControllerExceptionHandler extends ResponseEntityExceptionHandler {
         problemDetail.setDetail(e.getMessage());
         problemDetail.setTitle("UsernameNotFoundException");
         problemDetail.setProperty("Access_Denied", "Invalid username");
+        return problemDetail;
+    }
+    @ExceptionHandler(ProductDeliveryException.class)
+    public ProblemDetail handleProductDeliveryException(Exception e) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatusCode.valueOf(403));
+        problemDetail.setDetail(e.getMessage());
+        problemDetail.setTitle("ProductDeliveryException");
+        problemDetail.setProperty("Order_Status", "Exception in changing order status");
         return problemDetail;
     }
 }

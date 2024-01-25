@@ -16,6 +16,7 @@ import com.ecommerce.app.EcommerceApp.repositories.AddressRepository;
 import com.ecommerce.app.EcommerceApp.repositories.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.HttpStatus;
@@ -27,7 +28,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 
 @Service
@@ -51,10 +51,16 @@ public class UserService {
                 .mobile(detailsDto.getMobile())
                 .role(Role.ROLE_ADMIN.name())
                 .build();
-        return validateAndSetImage(image,userInfo);
+        ResponseEntity<Object> response=validateAndSetImage(image,userInfo);
+        UserInfoDto dto= (UserInfoDto) response.getBody();
+        assert dto != null;
+        EntityModel<UserInfoDto> entityModel=EntityModel.of(dto);
+        entityModel.add(WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(HomeController.class)
+                .login(null)).withRel("Login"));
+        return new ResponseEntity<>(entityModel,HttpStatus.CREATED);
     }
 
-    private ResponseEntity<?> validateAndSetImage(MultipartFile image,UserInfo userInfo){
+    private ResponseEntity<Object> validateAndSetImage(MultipartFile image,UserInfo userInfo){
         if(image!=null){
             try {
                 if (!image.getContentType().startsWith("image/")) {
@@ -66,8 +72,15 @@ public class UserService {
             }
         }
         UserInfo userInfo1=userRepository.save(userInfo);
-        userInfo1.setPassword("**********");
-        return new ResponseEntity<>(userInfo1,HttpStatus.CREATED);
+        UserInfoDto userInfoDto=new UserInfoDto();
+        userInfoDto.setName(userInfo1.getName());
+        userInfoDto.setEmail(userInfo1.getEmail());
+        userInfoDto.setMobile(userInfo1.getMobile());
+        userInfoDto.setPassword("*************");
+        if(userInfo1.getProfileImage()!=null){
+            userInfoDto.setProfileImage(userInfo1.getProfileImage());
+        }
+        return new ResponseEntity<>(userInfoDto,HttpStatus.CREATED);
     }
 
     public boolean isUserAlreadyPresent(String email){

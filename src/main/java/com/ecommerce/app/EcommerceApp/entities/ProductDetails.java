@@ -4,10 +4,7 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.util.List;
@@ -24,6 +21,9 @@ public class ProductDetails {
     @Size(min = 2,max = 100)
     @Pattern(regexp = "^[a-zA-Z]+$",message = "Give valid product name")
     private String name;
+    @NotNull
+    @NotBlank
+    private String brand;
     @DecimalMin("1.0")
     private double price;
     @Min(1)
@@ -32,4 +32,7 @@ public class ProductDetails {
     @JsonManagedReference
     @ManyToOne
     private Categories category;
+    @OneToMany(orphanRemoval = false,
+            mappedBy = "productDetails")
+    private List<Orders> orders;
 }
