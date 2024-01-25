@@ -1,5 +1,7 @@
 package com.ecommerce.app.EcommerceApp.entities;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,7 +12,6 @@ import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
 @Data
 @Entity
 public class Categories {
@@ -18,7 +19,9 @@ public class Categories {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
+    @Column(unique = true)
     private String name;
-    @OneToMany(mappedBy = "category")
+    @JsonBackReference
+    @OneToMany(mappedBy = "category",fetch = FetchType.LAZY)
     private List<ProductDetails> productDetails;
 }

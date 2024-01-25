@@ -2,6 +2,7 @@ package com.ecommerce.app.EcommerceApp.enums;
 
 public enum OrderStatus {
 
+    ORDER_PLACED,
     PACKED,
     CANCELLED,
     SHIPPED,

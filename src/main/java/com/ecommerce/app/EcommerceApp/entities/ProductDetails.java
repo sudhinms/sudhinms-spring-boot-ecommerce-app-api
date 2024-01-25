@@ -1,19 +1,21 @@
 package com.ecommerce.app.EcommerceApp.entities;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
+import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-@Builder
+@JsonIgnoreProperties(value = {"hibernateLazyInitializer", "handler"})
 @Entity
 public class ProductDetails {
     @Id
@@ -27,6 +29,7 @@ public class ProductDetails {
     @Min(1)
     private int quantity;
     private String imagePath;
+    @JsonManagedReference
     @ManyToOne
     private Categories category;
 }

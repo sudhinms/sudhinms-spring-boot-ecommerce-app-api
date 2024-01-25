@@ -1,5 +1,6 @@
 package com.ecommerce.app.EcommerceApp.services;
 
+import com.ecommerce.app.EcommerceApp.controllers.CustomerController;
 import com.ecommerce.app.EcommerceApp.dto.productDto.CartDto;
 import com.ecommerce.app.EcommerceApp.dto.productDto.ProductDetailsDto;
 import com.ecommerce.app.EcommerceApp.dto.productDto.ProductDetailsUserView;
@@ -11,7 +12,11 @@ import com.ecommerce.app.EcommerceApp.exceptions.ProductNotFoundException;
 import com.ecommerce.app.EcommerceApp.repositories.CartDetailsRepository;
 import com.ecommerce.app.EcommerceApp.repositories.ProductRepository;
 import com.ecommerce.app.EcommerceApp.repositories.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.Link;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -23,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@Slf4j
 public class CartService {
 
     @Autowired
@@ -37,10 +43,20 @@ public class CartService {
     private long getUserIdWithEmail(String email){
         return userRepository.findByEmail(email).get().getId();
     }
+    private byte[] getImage(String imagePath){
+        if(Files.exists(Path.of(imagePath))){
+            try {
+                return Files.readAllBytes(Path.of(imagePath));
+            } catch (IOException e) {
+                throw new FileReadWriteException(e.getMessage()+"\nCan't read image from : "+imagePath);
+            }
+        }
+        return new byte[]{};
+    }
 
     public ResponseEntity<?> addToCart(long id,String email){
         Optional<ProductDetails> optionalProduct=productRepository.findById(id);
-        if(optionalProduct.get()==null){
+        if(optionalProduct.isEmpty()){
             throw new ProductNotFoundException("Requested product with id : "+id+" not found");
         }
         List<CartDetails> cartDetailsList=cartDetailsRepository.findAllByUserId(getUserIdWithEmail(email));
@@ -62,13 +78,8 @@ public class CartService {
                 .productId(product.getId())
                 .price(product.getPrice())
                 .build();
-        String productImagePath=optionalProduct.get().getImagePath();
-        if(Files.exists(Path.of(productImagePath))){
-            try {
-                cartDto.setImage(Files.readAllBytes(Path.of(product.getImagePath())));
-            } catch (IOException e) {
-                throw new FileReadWriteException(e.getMessage()+"\nCan't read image from : "+product.getImagePath());
-            }
+        if(product.getImagePath()!=null){
+            cartDto.setImage(getImage(product.getImagePath()));
         }
         return new ResponseEntity<>(cartDetails, HttpStatus.OK);
     }
@@ -79,25 +90,30 @@ public class CartService {
                 .stream().map(productId->productRepository.findById(productId))
                 .map(productDetails -> {
                     ProductDetails details=productDetails.get();
-                    byte[] image=null;
-                    if(Files.exists(Path.of(details.getImagePath()))){
-                        try {
-                            image=Files.readAllBytes(Path.of(details.getImagePath()));
-                        } catch (IOException e) {
-                            throw new FileReadWriteException(e.getMessage()+"\nCan't read image from : "+details.getImagePath());
-                        }
+                    CartDto cartDto=new CartDto();
+                    cartDto.setProductId(details.getId());
+                    cartDto.setPrice(details.getPrice());
+                    cartDto.setProductName(details.getName());
+                    if(details.getImagePath()!=null){
+                        cartDto.setImage(getImage(details.getImagePath()));
                     }
-                    return new CartDto(details.getId(),details.getName(),details.getPrice(),image);
+                    return cartDto;
                 }).toList();
         return new ResponseEntity<>(allItems,HttpStatus.OK);
     }
 
-    public ResponseEntity<String> deleteFromCart(long id,String email){
-        List<CartDetails> allItemsOfUser=cartDetailsRepository.findAllByUserId(getUserIdWithEmail(email));
-        if(allItemsOfUser.stream().filter(product->product.getProductId()==id).toList().isEmpty()){
-            throw new ProductNotFoundException("Requested product with id : "+id+" not found");
+    public ResponseEntity<EntityModel<String>> deleteFromCart(long id,String email){
+        if(cartDetailsRepository.findByProductIdAndUserId(id,getUserIdWithEmail(email))!=null){
+            cartDetailsRepository.deleteByUserIdAndProductId(getUserIdWithEmail(email),id);
+            EntityModel<String> entityModel=EntityModel.of("Product deleted successfully");
+            entityModel.add(WebMvcLinkBuilder
+                    .linkTo(WebMvcLinkBuilder
+                            .methodOn(CustomerController.class)
+                            .getAllProductsFromCart(null)).withRel("Get_All_Cart_Items"));
+            return new ResponseEntity<>(entityModel,HttpStatus.OK);
         }
-        cartDetailsRepository.deleteByProductIdAndUserId(id,getUserIdWithEmail(email));
-        return new ResponseEntity<>("hh",HttpStatus.OK);
+        else {
+            throw new ProductNotFoundException("Product with id : "+id+"  not found");
+        }
     }
 }

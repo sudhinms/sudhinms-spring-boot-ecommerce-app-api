@@ -3,14 +3,13 @@ package com.ecommerce.app.EcommerceApp.controllers;
 import com.ecommerce.app.EcommerceApp.configuration.JwtService;
 import com.ecommerce.app.EcommerceApp.dto.productDto.ProductDetailsDto;
 import com.ecommerce.app.EcommerceApp.dto.productDto.ProductDetailsUserView;
-import com.ecommerce.app.EcommerceApp.dto.userDto.LoginDto;
-import com.ecommerce.app.EcommerceApp.dto.userDto.PasswordDto;
-import com.ecommerce.app.EcommerceApp.dto.userDto.UpdateProfileDto;
-import com.ecommerce.app.EcommerceApp.dto.userDto.UserInfoDto;
+import com.ecommerce.app.EcommerceApp.dto.userDto.*;
+import com.ecommerce.app.EcommerceApp.entities.Address;
 import com.ecommerce.app.EcommerceApp.services.ProductService;
 import com.ecommerce.app.EcommerceApp.services.UserService;
 import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +24,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/app")
+@Slf4j
 public class HomeController {
 
     @Autowired
@@ -38,7 +38,7 @@ public class HomeController {
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@ModelAttribute @Valid UserInfoDto userInfoDto
-                                              , @RequestParam("image")@Nullable MultipartFile image){
+                                              ,@RequestParam("image")@Nullable MultipartFile image){
         return userService.registerUser(userInfoDto,image);
     }
 
@@ -56,22 +56,22 @@ public class HomeController {
 
     @GetMapping("/user/profile")
     public ResponseEntity<?> getProfile(@RequestHeader (name="Authorization") String token){
-        String email=jwtService.extractUsernameFromToken(token);
+        String email=jwtService.extractUsernameFromToken(token.substring(7));
         return userService.getProfile(email);
     }
 
     @PutMapping("/user/update/password")
     public ResponseEntity<?> updatePassword(@RequestBody @Valid PasswordDto passwordDto,
                                             @RequestHeader (name="Authorization") String token){
-        String email=jwtService.extractUsernameFromToken(token);
+        String email=jwtService.extractUsernameFromToken(token.substring(7));
         return userService.updatePassword(email,passwordDto);
     }
 
     @PatchMapping("/user/update/profile")
     public ResponseEntity<?> updateProfile(@ModelAttribute @Valid UpdateProfileDto updateProfileDto,
-                                           @RequestParam("image") MultipartFile image,
+                                           @RequestParam("image") @Nullable MultipartFile image,
                                            @RequestHeader (name="Authorization") String token){
-        String email=jwtService.extractUsernameFromToken(token);
+        String email=jwtService.extractUsernameFromToken(token.substring(7));
         return userService.updateProfile(updateProfileDto,email,image);
     }
 
@@ -83,5 +83,16 @@ public class HomeController {
     @GetMapping("/product/view/all")
     public ResponseEntity<List<ProductDetailsUserView>> getAllProducts(){
         return productService.getAllProductsForUsersView();
+    }
+    @GetMapping("/user/getAll-address")
+    public ResponseEntity<List<Address>> getAllAddresses(@RequestHeader (name="Authorization") String token){
+        String currentUserEmail=jwtService.extractUsernameFromToken(token.substring(7));
+        return userService.getAllAddress(currentUserEmail);
+    }
+    @PostMapping("/user/create-address")
+    public ResponseEntity<?> createAddress(@RequestBody AddressDto addressDto,
+                                           @RequestHeader (name="Authorization") String token){
+        String currentUserEmail=jwtService.extractUsernameFromToken(token.substring(7));
+        return userService.createNewAddress(currentUserEmail,addressDto);
     }
 }

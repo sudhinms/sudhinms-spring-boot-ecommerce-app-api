@@ -3,6 +3,7 @@ package com.ecommerce.app.EcommerceApp.configuration;
 import com.ecommerce.app.EcommerceApp.securityServices.UserDetailServiceImpl;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -18,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -57,7 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             filterChain.doFilter(request, response);
-        }catch (SignatureException | ExpiredJwtException e){
+        }catch (SignatureException | ExpiredJwtException | AccessDeniedException | MalformedJwtException e){
             exceptionResolver.resolveException(request,response,null,e);
         }
     }

@@ -17,7 +17,6 @@ import java.util.function.Function;
 public class JwtService {
 
     private final String SECRET_KEY="2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b";
-    private final HexFormat hexFormat=HexFormat.of();
 
     //      TOKEN CREATION.........................................
 
@@ -31,7 +30,7 @@ public class JwtService {
                 .claims(claims)
                 .subject(username)
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis()+1000*60*2))
+                .expiration(new Date(System.currentTimeMillis()+1000*60*60))
                 .signWith(getSignKey())
                 .compact();
     }

@@ -1,21 +1,22 @@
 package com.ecommerce.app.EcommerceApp.entities;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
+@JsonIgnoreProperties(value = {"hibernateLazyInitializer", "handler"})
 @Entity
 @Builder
 @Table(uniqueConstraints = {@UniqueConstraint(columnNames = {"email"})})
@@ -39,6 +40,10 @@ public class UserInfo {
     @Lob
     @Column(name = "profile_image",length = 3145728)
     private byte[] profileImage;
-    @OneToMany(mappedBy = "userInfo")
+    @JsonManagedReference
+    @OneToMany(mappedBy = "userInfo",fetch = FetchType.LAZY)
     private List<Address> addresses;
+    @OneToMany(cascade = CascadeType.ALL,
+            mappedBy = "userInfo")
+    private List<Orders> orders;
 }

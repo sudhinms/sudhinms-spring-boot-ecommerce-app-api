@@ -1,17 +1,18 @@
 package com.ecommerce.app.EcommerceApp.entities;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
 @Builder
+@JsonIgnoreProperties(value = {"hibernateLazyInitializer", "handler"})
 @Entity
 public class Address {
     @Id
@@ -19,14 +20,15 @@ public class Address {
     private long id;
     private String street;
     @Size(min = 2,max = 100)
-    @Pattern(regexp = "^[a-zA-Z]+$",message = "Give valid name")
+    @Pattern(regexp = "^[a-zA-Z]+$",message = "Give valid city")
     private String city;
     @Size(min = 2,max = 100)
-    @Pattern(regexp = "^[a-zA-Z]+$",message = "Give valid name")
+    @Pattern(regexp = "^[a-zA-Z]+$",message = "Give valid state")
     private String state;
-    @Pattern(regexp = "^\\\\d{6}$",message = "Invalid pin")
+    @Pattern(regexp = "^\\d{6}$",message = "Invalid pin")
     private String pin;
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JsonBackReference
     @JoinColumn(name = "user_id")
     private UserInfo userInfo;
 }
